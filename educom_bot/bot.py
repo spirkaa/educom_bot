@@ -83,6 +83,7 @@ def notify_users(context, content):
         content["entry_date"], content["entry_title"], content["entry_doc"]
     )
     logger.info("Sending notifications...")
+    logger.info(content)
     for chat_id in BOT_USERS_CHAT_ID:
         context.bot.send_message(
             chat_id=chat_id, text=text, disable_web_page_preview=True
@@ -139,10 +140,26 @@ def refresh_session(forced=False):
 
         with open(COOKIE_FILE, "w") as f:
             json.dump(requests.utils.dict_from_cookiejar(browser.session.cookies), f)
-        logger.debug("Session was refreshed")
+        if forced:
+            logger.debug("Session updated (FORCED)")
+        else:
+            logger.debug("Session updated")
         browser.close()
     else:
-        logger.debug("Session is OK")
+        logger.debug("Cookie file is OK")
+
+
+def create_browser(refresh_cookie=False):
+    """
+    Create browser with auth cookie.
+    :param refresh_cookie: Refresh cookie before browser creation.
+    :return: mechanicalsoup.StatefulBrowser class object.
+    """
+    refresh_session(refresh_cookie)
+    browser = mechanicalsoup.StatefulBrowser()
+    with open(COOKIE_FILE) as f:
+        browser.session.cookies.update(json.load(f))
+    return browser
 
 
 def check_for_updates(context):
@@ -150,16 +167,14 @@ def check_for_updates(context):
     Check website for a new post.
     :param context: The telegram CallbackContext class object.
     """
-    refresh_session()
-    browser = mechanicalsoup.StatefulBrowser()
-    with open(COOKIE_FILE) as f:
-        browser.session.cookies.update(json.load(f))
-
-    page = browser.open(URL_BASE + URL_NEWS)
+    browser = create_browser()
     try:
+        page = browser.open(URL_BASE + URL_NEWS)
         assert page.soup.select("div.logout-button")
     except AssertionError:
-        refresh_session(True)
+        logger.debug("Session stale, force cookie update")
+        browser.close()
+        browser = create_browser(True)
         page = browser.open(URL_BASE + URL_NEWS)
 
     entry = page.soup.select("div.ui.form")[0]
@@ -178,14 +193,11 @@ def check_for_updates(context):
         "entry_doc": html.escape(str(entry_doc)),
     }
 
-    browser.close()
-
-    # 1st run
+    # Create ENTRY_FILE if not exist
     if not os.path.isfile(ENTRY_FILE):
         with open(ENTRY_FILE, "w") as f:
             json.dump(res, f)
             notify_users(context, res)
-            logger.debug(res)
 
     with open(ENTRY_FILE, "r+") as f:
         last_sent_entry = json.load(f)
@@ -194,7 +206,9 @@ def check_for_updates(context):
             json.dump(res, f)
             f.truncate()
             notify_users(context, res)
-            logger.debug(res)
+
+    logger.debug(res)
+    browser.close()
 
 
 def main():
