@@ -5,6 +5,7 @@ import os
 import re
 import traceback
 from time import time
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import mechanicalsoup
 import requests
@@ -155,20 +156,34 @@ def create_browser(refresh_cookie=False):
     return browser
 
 
+def remove_id(url):
+    """
+    Remove school ID from doc url.
+    :param url: url to be processed
+    :return: processed url
+    """
+    u = urlparse(url)
+    query = parse_qs(u.query, keep_blank_values=True)
+    query.pop("eo_id", None)
+    u = u._replace(query=urlencode(query, True))
+    return urlunparse(u)
+
+
 def check_for_updates(context):
     """
     Check website for a new post.
     :param context: The telegram CallbackContext class object.
     """
     browser = create_browser()
+    url = URL_BASE + URL_NEWS
     try:
-        browser.open(URL_BASE + URL_NEWS)
+        browser.open(url)
         assert browser.page.select("div.logout-button")
     except AssertionError:
         logger.debug("Session stale, force cookie update")
         browser.close()
         browser = create_browser(True)
-        browser.open(URL_BASE + URL_NEWS)
+        browser.open(url)
 
     entry = browser.page.select("div.ui.form")[0]
     entry_id = entry.attrs.get("data-element")
@@ -178,6 +193,7 @@ def check_for_updates(context):
     entry_title = re.sub(pattern, " ", entry_title)
     entry_title = entry_title.replace(entry_date, "").strip()
     entry_doc = entry.select("a.item.alf-file-show")[0].attrs.get("href")
+    entry_doc = remove_id(entry_doc)
 
     res = {
         "entry_id": html.escape(str(entry_id)),
