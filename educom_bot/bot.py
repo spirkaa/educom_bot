@@ -162,15 +162,15 @@ def check_for_updates(context):
     """
     browser = create_browser()
     try:
-        page = browser.open(URL_BASE + URL_NEWS)
-        assert page.soup.select("div.logout-button")
+        browser.open(URL_BASE + URL_NEWS)
+        assert browser.page.select("div.logout-button")
     except AssertionError:
         logger.debug("Session stale, force cookie update")
         browser.close()
         browser = create_browser(True)
-        page = browser.open(URL_BASE + URL_NEWS)
+        browser.open(URL_BASE + URL_NEWS)
 
-    entry = page.soup.select("div.ui.form")[0]
+    entry = browser.page.select("div.ui.form")[0]
     entry_id = entry.attrs.get("data-element")
     entry_title_full = entry.select("div.title.alf-click-acctitle")[0]
     entry_date = entry_title_full.select("div.ui.label")[0].text.strip()
