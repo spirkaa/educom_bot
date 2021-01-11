@@ -33,6 +33,11 @@ if os.getenv("PROXY_URL"):
         "proxy_url": os.getenv("PROXY_URL"),
     }
 
+LK_CHECK_INTERVAL = int(os.getenv("LK_CHECK_INTERVAL", 30))
+BOT_DISABLE_WEB_PAGE_PREVIEW = (
+    os.getenv("BOT_DISABLE_WEB_PAGE_PREVIEW", "True").lower() == "true"
+)
+
 URL_BASE = "http://lk.educom.ru/"
 URL_LOGIN = "login.html"
 URL_NEWS = "news.html"
@@ -41,7 +46,6 @@ ENTRY_FILE = "entry.json"
 COOKIE_FILE = "cookies.json"
 
 COOKIE_LIFETIME = 30 * 60  # 30m
-LK_CHECK_INTERVAL = 30  # 30s
 
 pattern = re.compile(r"\s+")
 
@@ -80,7 +84,9 @@ def notify_users(context, content):
     logger.info(content)
     for chat_id in BOT_USERS_CHAT_ID:
         context.bot.send_message(
-            chat_id=chat_id, text=text, disable_web_page_preview=True
+            chat_id=chat_id,
+            text=text,
+            disable_web_page_preview=BOT_DISABLE_WEB_PAGE_PREVIEW,
         )
 
 
