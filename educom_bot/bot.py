@@ -191,36 +191,52 @@ def check_for_updates(context):
         browser = create_browser(True)
         browser.open(url)
 
-    entry = browser.page.select("div.ui.form")[0]
-    entry_id = entry.attrs.get("data-element")
-    entry_title_full = entry.select("div.title.alf-click-acctitle")[0]
-    entry_date = entry_title_full.select("div.ui.label")[0].text.strip()
-    entry_title = entry_title_full.text.strip()
-    entry_title = re.sub(pattern, " ", entry_title)
-    entry_title = entry_title.replace(entry_date, "").strip()
-    entry_doc = entry.select("a.item.alf-file-show")[0].attrs.get("href")
-    entry_doc = remove_id(entry_doc)
+    entrys_dict = {}
+    entry = browser.page.select("div.ui.form")
+    
+    for a in entry:
 
-    res = {
-        "entry_id": html.escape(str(entry_id)),
-        "entry_date": html.escape(str(entry_date)),
-        "entry_title": html.escape(str(entry_title)),
-        "entry_doc": html.escape(str(entry_doc)),
-    }
+        entry_id = a.attrs.get("data-element")
+        entry_title_full = a.select("div.title.alf-click-acctitle")[0]
+        entry_date = entry_title_full.select("div.ui.label")[0].text.strip()
+        entry_title = entry_title_full.text.strip()
+        entry_title = re.sub(pattern, " ", entry_title)
+        entry_title = entry_title.replace(entry_date, "").strip()
+        entry_doc = a.select("a.item.alf-file-show")[0].attrs.get("href")
+        entry_doc = remove_id(entry_doc)
+
+        res = {
+            "entry_id": html.escape(str(entry_id)),
+            "entry_date": html.escape(str(entry_date)),
+            "entry_title": html.escape(str(entry_title)),
+            "entry_doc": html.escape(str(entry_doc)),
+        }
+              
+        entrys_dict.update({res["entry_id"]:res})
+
+
+    set_entrys = set(entrys_dict)
 
     # Create ENTRY_FILE if not exist
     if not os.path.isfile(ENTRY_FILE):
         with open(ENTRY_FILE, "w") as f:
-            json.dump(res, f)
-            notify_users(context, res)
+            json.dump(list(set_entrys), f)
+            for a in set_entrys:
+                notify_users(context, entrys_dict.get(a))
 
     with open(ENTRY_FILE, "r+") as f:
-        last_sent_entry = json.load(f)
-        if res != last_sent_entry:
-            f.seek(0)
-            json.dump(res, f)
-            f.truncate()
-            notify_users(context, res)
+        set_previous_entrys = set(json.load(f))
+
+        print(set_entrys.difference(set_previous_entrys))
+        
+        for a in set_entrys.difference(set_previous_entrys):
+
+            print(entrys_dict.get(a))
+            notify_users(context, entrys_dict.get(a))
+        
+        f.seek(0)
+        json.dump(list(set_entrys), f)
+        f.truncate()
 
     logger.debug(res)
     browser.close()
