@@ -2,4 +2,4 @@ beautifulsoup4==4.9.3
 MechanicalSoup==1.0.0
 python-dotenv==0.15.0
 python-telegram-bot==13.1
-requests==2.25.1
+requests==2.31.0
